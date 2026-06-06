@@ -16,7 +16,7 @@ If you've ever had a script break because it tried to talk to another script tha
 ## How to Get Started
 
 ### 1. Installation
-1. Navigate to the [Releases](tbd) page and download the latest `ModuleLoader.rbxm` file (or grab the source code).
+1. Navigate to the [Releases](https://github.com/Distracted-Games/ModuleLoader/releases/latest) page and download the latest `ModuleLoader.rbxm` file (or grab the source code).
 2. Drag and drop the `.rbxm` file into Roblox Studio (if you grabbed the source code, copy into your editor).
 3. From inside the model, place `ModuleLoader` in `ReplicatedStorage` (or inside `ReplicatedStorage.Source` alongside your other client modules — the loader automatically skips itself during the discovery phase).
 
