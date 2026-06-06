@@ -1,0 +1,73 @@
+{
+    // Theme
+    "workbench.iconTheme": "material-icon-theme",
+    "material-icon-theme.folders.theme": "specific",
+    "material-icon-theme.folders.associations": {
+        "ReplicatedFirst": "queue",
+        "ReplicatedFirst/Source": "queue",
+        "ReplicatedFirst/src": "queue",
+        "ReplicatedStorage": "shared",
+        "ReplicatedStorage/Source": "shared",
+        "ReplicatedStorage/src": "shared",
+        "ServerScriptService": "server",
+        "ServerScriptService/Source": "server",
+        "ServerScriptService/src": "server",
+        "ServerStorage": "database",
+        "ServerStorage/Source": "database",
+        "ServerStorage/src": "database",
+        "StarterCharacterScripts": "console",
+        "StarterCharacterScripts/Source": "console",
+        "StarterCharacterScripts/src": "console",
+        "StarterPlayerScripts": "client",
+        "StarterPlayerScripts/Source": "client",
+        "StarterPlayerScripts/src": "client",
+        "Cmdr": "lib",
+        "PlayerData": "template",
+        "DataStore": "database"
+    },
+    "editor.semanticHighlighting.enabled": true,
+    "editor.rulers": [
+        80,
+        100
+    ],
+    // git
+    "git.showPushSuccessNotification": true,
+    "git.autofetch": true,
+    "git.openRepositoryInParentFolders": "always",
+    "git.confirmSync": false,
+    // diff
+    "diffEditor.ignoreTrimWhitespace": true,
+    "diffEditor.renderSideBySide": true,
+    // LuauLSP
+    "luau-lsp.completion.imports.enabled": true,
+    "luau-lsp.completion.autocompleteEnd": true,
+    "luau-lsp.completion.imports.separateGroupsWithLine": true,
+    "luau-lsp.fflags.enableNewSolver": true,
+    // Stylua
+    "[lua]": {
+        "editor.defaultFormatter": "JohnnyMorganz.stylua",
+        "editor.formatOnSave": true
+    },
+    "[luau]": {
+        "editor.defaultFormatter": "JohnnyMorganz.stylua",
+        "editor.formatOnSave": true
+    },
+    "editor.formatOnSave": true,
+    // Fix `init` file name display to show parent directory name
+    "workbench.editor.customLabels.patterns": {
+        "**/init.lua": "${dirname} (${filename}.${extname})",
+        "**/init.luau": "${dirname} (${filename}.${extname})"
+    },
+    //Other
+    "json.schemaDownload.enable": true,
+    "terminal.integrated.defaultProfile.windows": "Git Bash",
+    "files.associations": {
+        "*.lua": "lua",
+        "*.luau": "luau"
+    },
+    "files.insertFinalNewline": true,
+    "editor.inlineSuggest.suppressSuggestions": true,
+    "workbench.secondarySideBar.defaultVisibility": "hidden",
+    "editor.inlineSuggest.enabled": false,
+    "files.autoSave": "afterDelay",
+}

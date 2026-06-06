@@ -1,0 +1,15 @@
+{
+    "name": "ModuleLoader",
+    "tree": {
+        "$className": "DataModel",
+        "$ignoreUnknownInstances": true,
+
+        "ReplicatedStorage": {
+            "$className": "ReplicatedStorage",
+            "$ignoreUnknownInstances": true,
+            "ModuleLoader": {
+                "$path": "src/ModuleLoader"
+            }
+        }
+    }
+}
