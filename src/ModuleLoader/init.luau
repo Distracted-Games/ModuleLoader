@@ -1,8 +1,9 @@
 --!strict
+
 --[[
     ModuleLoader
     @author DistractedGames
-    @version 3.0.0
+    @version 3.0.1
 
     This module implements a two-pass loading system for ModuleScripts using Promises.
     It is designed to run on both the server and the client to create a unified module
@@ -151,7 +152,7 @@ function ModuleLoader.Init()
 		end
 	end
 
-	local setupPromises = {}
+	local setupPromises: { Promise.Promise<any> } = {}
 
 	-- Gate 1: Setup Phase
 	for name, module in discoveredModules do
@@ -168,7 +169,7 @@ function ModuleLoader.Init()
 		:andThen(function()
 			log("Setup phase complete. Proceeding to Start phase.")
 
-			local startPromises = {}
+			local startPromises: { Promise.Promise<any> } = {}
 
 			-- Gate 2: Start Phase
 			for name, module in discoveredModules do
