@@ -10,8 +10,9 @@ If you've ever had a script break because it tried to talk to another script tha
 *	**Resilient Retry Logic:** Automatically catches yielding failures or network timeouts and safely retries them without lagging the rest of the game.
 *	**Strictly Typed:** Written in strict modern Luau (`--!strict`), establishing a clean standard for your codebase.
 *	**Drop-in Ready:** Ships with `LeanPromise` and `Signal` directly nested as dependencies. You don't need to hunt down external libraries to make it work.
+*	**(NEW) Server Authority Support:** When the `ServerAuthority` config is set to `true` at the top of the module, the server will find the necessary shared simulation modules in `ReplicatedStorage` as well as its normal `ServerScriptService` modules.
 	
-	> ***Note**: I recommend moving both of these libraries into a `Libs` folder within `ReplicatedStorage/Source` and updating the `re1uire()` paths in `ModuleLoader` so you can use them elsewhere without needing the additional path.*
+	> ***Note**: I recommend moving both of these libraries into a `Libs` folder within `ReplicatedStorage/Source` and updating the `require()` paths in `ModuleLoader` so you can use them elsewhere without needing the additional path.*
 
 ## How to Get Started
 
@@ -24,6 +25,9 @@ If you've ever had a script break because it tried to talk to another script tha
 For the loader to find your modules, they must be placed in the correct directories:
 *	**Server Modules:** Place anywhere inside `ServerScriptService`.
 *	**Client Modules:** Place anywhere inside a folder named `Source` within `ReplicatedStorage` (`ReplicatedStorage.Source`).
+*	**Simulation Modules (Server Authority):** When `ServerAuthority` is enabled in configuration, place shared simulation modules inside `ReplicatedStorage.Source.Simulation`. The server loader will automatically scan both `ServerScriptService` and `ReplicatedStorage.Source.Simulation`. The client loader's scan will automatically include the `Simulation` modules.
+
+> ***Important:** Ensure all module names are unique across your codebase. If two modules share the same name (even across different directories), the loader will register the last discovered module and overwrite the earlier one.*
 
 ### 3. Usage
 You only need two standard scripts in your entire game to trigger the framework: one on the server, and one on the client. They act as "dumb triggers" to start the engine.
@@ -108,3 +112,11 @@ The lifecycles are heavily sandboxed. Both `Setup` and `Start` methods are execu
 To ensure strict type safety and eliminate runtime errors related to dynamic scoping, `ModuleLoader` evaluates lifecycle methods as pure procedural functions (`() -> ()`: no arguments, no return values).
 
 You should ideally define your lifecycle methods using dot notation (`function Module.Setup()`), rather than colon notation (`function Module:Setup()`), as the loader does not pass a `self` context when invoking the lifecycles, although it's not going to usually hurt anything if you do.
+
+### Configuration
+`ModuleLoader` includes a `config` table near the top of the module script for customization:
+*	`ATTEMPT_LIMIT` (*number*, default: `3`): How many times to try running a lifecycle method before failing.
+*	`RETRY_DELAY` (*number*, default: `1`): Seconds to wait between failed attempts.
+*	`Debug` (*boolean*, default: `false`): When `true`, prints detailed logs for each step.
+*	`ServerAuthority` (*boolean*, default: `false`): When `true`, the server loader also discovers and executes modules in `ReplicatedStorage.Source.Simulation` alongside `ServerScriptService`.
+

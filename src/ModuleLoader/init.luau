@@ -3,7 +3,7 @@
 --[[
     ModuleLoader
     @author DistractedGames
-    @version 3.0.1
+    @version 3.1.0
 
     This module implements a two-pass loading system for ModuleScripts using Promises.
     It is designed to run on both the server and the client to create a unified module
@@ -31,25 +31,21 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
-local Promise = require(script.LeanPromise)
-local Signal = require(script.Signal)
+local Promise = require("@self/LeanPromise")
+local Signal = require("@self/Signal")
 
 -- Configuration for the loader's behavior.
 local config = {
 	ATTEMPT_LIMIT = 3, -- How many times to try running a lifecycle method before failing.
 	RETRY_DELAY = 1, -- Seconds to wait between failed attempts.
 	Debug = false, -- When true, prints detailed logs for each step.
+	ServerAuthority = false, -- When true, server loader also discovers modules in ReplicatedStorage.Source.Simulation.
 }
 
 type Promise<T> = Promise.Promise<T>
 
--- Determine the environment and root directory for modules.
+-- Determine the environment.
 local isServer = RunService:IsServer()
--- On the client, modules are expected to be in a "Source" folder within ReplicatedStorage.
-local rootDirectory = if isServer then ServerScriptService else ReplicatedStorage
-local moduleDirectory = if isServer
-	then rootDirectory :: ServerScriptService
-	else (rootDirectory :: ReplicatedStorage):WaitForChild("Source") :: Folder
 
 local ModuleLoader = {}
 
@@ -78,7 +74,48 @@ local function log(message: string, isWarning: boolean?)
 end
 
 --[[
-    Executes a lifecycle method with retry logic wrapped ina  single Promise.
+	Gets an existing Folder under the specified parent, or creates a new one if it does not exist.
+	@param parent The parent Instance.
+	@param name The name of the Folder.
+	@return The existing or newly created Folder.
+]]
+local function getOrCreateFolder(parent: Instance, name: string): Folder
+	local child = parent:FindFirstChild(name)
+	if child and child:IsA("Folder") then
+		return child
+	end
+
+	local folder = Instance.new("Folder")
+	folder.Name = name
+	folder.Parent = parent
+	return folder
+end
+
+--[[
+	Resolves all directory instances that should be searched for ModuleScripts
+	based on the current environment and configuration.
+	@return An array of instances to scan.
+]]
+local function getModuleDirectories(): { Instance }
+	local directories: { Instance } = {}
+
+	if isServer then
+		table.insert(directories, ServerScriptService)
+
+		if config.ServerAuthority then
+			local sourceFolder = getOrCreateFolder(ReplicatedStorage, "Source")
+			local simulationFolder = getOrCreateFolder(sourceFolder, "Simulation")
+			table.insert(directories, simulationFolder)
+		end
+	else
+		table.insert(directories, ReplicatedStorage:WaitForChild("Source"))
+	end
+
+	return directories
+end
+
+--[[
+    Executes a lifecycle method with retry logic wrapped in a single Promise.
 	This safely bypasses edge cases with nested Promise flattening by ensuring
 	the resolve/reject state is only mutated once per module.
 	@param methodName The Name of the lifecycle method being called (for logging).
@@ -97,7 +134,7 @@ local function retryWithPromise(methodName: string, methodFunc: () -> (), attemp
 			local success, result = pcall(methodFunc)
 
 			if success then
-				-- The lifecycle method suceeded! Pass the result forward.
+				-- The lifecycle method succeeded! Pass the result forward.
 				resolve(result)
 				return
 			end
@@ -130,25 +167,28 @@ function ModuleLoader.Init()
 	log("Bootstrapping framework...")
 
 	local discoveredModules = {}
+	local directoriesToScan = getModuleDirectories()
 
 	-- Gather and require all modules safely
-	for _, moduleScript in moduleDirectory:GetDescendants() do
-		if not moduleScript:IsA("ModuleScript") then
-			continue
-		end
-		if moduleScript.Name == script.Name then
-			continue
-		end
+	for _, directory in directoriesToScan do
+		for _, moduleScript in directory:GetDescendants() do
+			if not moduleScript:IsA("ModuleScript") then
+				continue
+			end
+			if moduleScript.Name == script.Name then
+				continue
+			end
 
-		local success, module = pcall(require, moduleScript)
+			local success, module = pcall(require, moduleScript)
 
-		if not success then
-			log(`Failed to require '{moduleScript.Name}': {tostring(module)}`, true)
-			continue
-		end
+			if not success then
+				log(`Failed to require '{moduleScript.Name}': {tostring(module)}`, true)
+				continue
+			end
 
-		if typeof(module) == "table" then
-			discoveredModules[moduleScript.Name] = module
+			if typeof(module) == "table" then
+				discoveredModules[moduleScript.Name] = module
+			end
 		end
 	end
 
@@ -160,7 +200,7 @@ function ModuleLoader.Init()
 			continue
 		end
 
-		local setupPromise = retryWithPromise(`{name}:Setup}`, module.Setup, config.ATTEMPT_LIMIT)
+		local setupPromise = retryWithPromise(`{name}:Setup`, module.Setup, config.ATTEMPT_LIMIT)
 		table.insert(setupPromises, setupPromise)
 	end
 
