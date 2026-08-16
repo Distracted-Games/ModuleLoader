@@ -60,13 +60,13 @@ ModuleLoader.GameReadySignal = Signal.new() :: Signal.Signal<>
     @param message The core message to log.
     @param isWarning If true, formats the message as a warning.
 ]]
-local function log(message: string, isWarning: boolean?)
+local function log(message: string, isWarning: "warn"?)
 	local prefix = `{script.Name} `
 	local source, line, funcName = debug.info(2, "sln")
 	local formattedSource = `{string.match(source, "@(.*)") or source}`
 	local logHeader = `{prefix} [{funcName or formattedSource}:{line}]`
 
-	if isWarning then
+	if isWarning and isWarning == "warn" then
 		warn(`{logHeader} {message}`)
 	elseif config.Debug then
 		print(`{logHeader} {message}`)
@@ -141,7 +141,7 @@ local function retryWithPromise(methodName: string, methodFunc: () -> (), attemp
 
 			-- It failed. Check if we have remaining attempts.
 			if remainingAttempts > 1 then
-				log(`{methodName} lifecycle failed. Retrying in {config.RETRY_DELAY}s...\nError: {tostring(result)}`, true)
+				log(`{methodName} lifecycle failed. Retrying in {config.RETRY_DELAY}s...\nError: {tostring(result)}`, "warn")
 
 				-- Wait using Promise.delay, then recursively try again.
 				Promise.delay(config.RETRY_DELAY):andThen(function()
@@ -181,10 +181,10 @@ function ModuleLoader.Init()
 
 			local success, module = pcall(require, moduleScript)
 
-			if not success then
-				log(`Failed to require '{moduleScript.Name}': {tostring(module)}`, true)
-				continue
-			end
+		if not success then
+			log(`Failed to require '{moduleScript.Name}': {tostring(module)}`, "warn")
+			continue
+		end
 
 			if typeof(module) == "table" then
 				discoveredModules[moduleScript.Name] = module
@@ -229,11 +229,11 @@ function ModuleLoader.Init()
 				ModuleLoader.GameReadySignal:Fire()
 			end)
 			:catch(function(err)
-				log(`Critical framework boot failure (Start Phase): {tostring(err)}`, true)
+				log(`Critical framework boot failure (Start Phase): {tostring(err)}`, "warn")
 			end)
 		end)
 		:catch(function(err)
-			log(`Critical framework boot failure (Setup Phase): {tostring(err)}`, true)
+			log(`Critical framework boot failure (Setup Phase): {tostring(err)}`, "warn")
 		end)
 end
 
