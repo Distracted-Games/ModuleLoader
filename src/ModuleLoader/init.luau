@@ -3,7 +3,7 @@
 --[[
     ModuleLoader
     @author DistractedGames
-    @version 3.1.0
+    @version 3.2.0
 
     This module implements a two-pass loading system for ModuleScripts using Promises.
     It is designed to run on both the server and the client to create a unified module
@@ -52,6 +52,7 @@ local ModuleLoader = {}
 -- A global signal that can be used by the single Script, or LocalScript where
 -- ModuleLoader is required, if needed.
 ModuleLoader.GameReadySignal = Signal.new() :: Signal.Signal<>
+local _isReady = false
 
 --[[
     Logs a formatted message to the output.
@@ -131,7 +132,12 @@ local function retryWithPromise(methodName: string, methodFunc: () -> (), attemp
 				return reject(`Max retry attempts reached for {methodName}.`)
 			end
 
+			local warningThread = task.delay(3, function()
+				log(`⚠️ Lifecycle '{methodName}' has been yielding for >3s. Check for unbounded WaitForChild calls!`, "warn")
+			end)
+
 			local success, result = pcall(methodFunc)
+			task.cancel(warningThread)
 
 			if success then
 				-- The lifecycle method succeeded! Pass the result forward.
@@ -159,6 +165,31 @@ local function retryWithPromise(methodName: string, methodFunc: () -> (), attemp
 end
 
 --[[
+	Returns whether the ModuleLoader has finished executing all Setup and Start lifecycles.
+]]
+function ModuleLoader.IsReady(): boolean
+	return _isReady
+end
+
+--[[
+	Returns a Promise that resolves when all modules have completed their Setup and Start lifecycles.
+	If the loader is already ready, the returned Promise resolves immediately.
+]]
+function ModuleLoader.WaitForReadyAsync(): Promise<nil>
+	if _isReady then
+		return Promise.resolve(nil) :: Promise<nil>
+	end
+
+	return Promise.new(function(resolve)
+		local connection: Signal.Connection
+		connection = ModuleLoader.GameReadySignal:Connect(function()
+			connection:Disconnect()
+			resolve()
+		end)
+	end) :: Promise<nil>
+end
+
+--[[
 	The main entry point for the module loader.
 	Executes the Setup and Start lifecycle passes in concurrent, synchronized gates.
 	This function handles its own asynchronous execution and emits a signal upon completion.
@@ -179,12 +210,17 @@ function ModuleLoader.Init()
 				continue
 			end
 
-			local success, module = pcall(require, moduleScript)
+			local requireWarning = task.delay(3, function()
+				log(`⚠️ Requiring '{moduleScript.Name}' has been yielding for >3s. Check for top-level yields or unbounded WaitForChild!`, "warn")
+			end)
 
-		if not success then
-			log(`Failed to require '{moduleScript.Name}': {tostring(module)}`, "warn")
-			continue
-		end
+			local success, module = pcall(require, moduleScript)
+			task.cancel(requireWarning)
+
+			if not success then
+				log(`Failed to require '{moduleScript.Name}': {tostring(module)}`, "warn")
+				continue
+			end
 
 			if typeof(module) == "table" then
 				discoveredModules[moduleScript.Name] = module
@@ -225,6 +261,7 @@ function ModuleLoader.Init()
 			-- Evaluate Start promises independently to ensure clean error catching.
 			Promise.all(startPromises)
 			:andThen(function()
+				_isReady = true
 				log("All modules have been loaded and started.")
 				ModuleLoader.GameReadySignal:Fire()
 			end)
