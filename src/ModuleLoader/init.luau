@@ -3,7 +3,7 @@
 --[[
     ModuleLoader
     @author DistractedGames
-    @version 3.2.0
+    @version 3.2.1
 
     This module implements a two-pass loading system for ModuleScripts using Promises.
     It is designed to run on both the server and the client to create a unified module
@@ -165,6 +165,20 @@ local function retryWithPromise(methodName: string, methodFunc: () -> (), attemp
 end
 
 --[[
+	Safely retrieves a lifecycle method from a module table.
+	Protected with pcall to prevent errors from proxy tables or metatables with strict __index metamethods.
+	@param module The module table to inspect.
+	@param methodName The lifecycle method name (e.g. "Setup", "Start").
+	@return The lifecycle function if present and callable, nil otherwise.
+]]
+local function getLifecycleMethod(module: any, methodName: string): (() -> ())?
+	local success, method = pcall(function()
+		return module[methodName]
+	end)
+	return if success and typeof(method) == "function" then method else nil
+end
+
+--[[
 	Returns whether the ModuleLoader has finished executing all Setup and Start lifecycles.
 ]]
 function ModuleLoader.IsReady(): boolean
@@ -232,11 +246,12 @@ function ModuleLoader.Init()
 
 	-- Gate 1: Setup Phase
 	for name, module in discoveredModules do
-		if typeof(module.Setup) ~= "function" then
+		local setupMethod = getLifecycleMethod(module, "Setup")
+		if not setupMethod then
 			continue
 		end
 
-		local setupPromise = retryWithPromise(`{name}:Setup`, module.Setup, config.ATTEMPT_LIMIT)
+		local setupPromise = retryWithPromise(`{name}:Setup`, setupMethod, config.ATTEMPT_LIMIT)
 		table.insert(setupPromises, setupPromise)
 	end
 
@@ -249,12 +264,13 @@ function ModuleLoader.Init()
 
 			-- Gate 2: Start Phase
 			for name, module in discoveredModules do
-				if typeof(module.Start) ~= "function" then
+				local startMethod = getLifecycleMethod(module, "Start")
+				if not startMethod then
 					continue
 				end
 
 				-- Casting `module.Start` type to satisfy type solver.
-				local startPromise = retryWithPromise(`{name}:Start`, module.Start :: () -> (), config.ATTEMPT_LIMIT)
+				local startPromise = retryWithPromise(`{name}:Start`, startMethod, config.ATTEMPT_LIMIT)
 				table.insert(startPromises, startPromise)
 			end
 
